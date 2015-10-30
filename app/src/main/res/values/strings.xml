@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">BTB</string>
+    <string name="google_api_key">AIzaSyCcNHJLQZgQ6E1BdTw6WsLni1kC_1XV1tw</string>
+    <string name="title_activity_main">MainActivity</string>
+</resources>
