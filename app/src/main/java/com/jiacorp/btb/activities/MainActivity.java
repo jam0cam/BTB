@@ -1,4 +1,4 @@
-package com.jiacorp.btb;
+package com.jiacorp.btb.activities;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -8,8 +8,6 @@ import android.content.IntentSender;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -17,6 +15,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.ErrorDialogFragment;
@@ -31,8 +30,15 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.plus.Plus;
+import com.google.android.gms.plus.model.people.Person;
+import com.jiacorp.btb.R;
+import com.jiacorp.btb.parse.Driver;
+import com.jiacorp.btb.parse.ModelUtil;
+import com.parse.FindCallback;
+import com.parse.ParseException;
 
-import butterknife.Bind;
+import java.util.List;
+
 import butterknife.ButterKnife;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -51,6 +57,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     GoogleMap mMap;
     MapFragment mapFragment;
     protected Location mLastLocation;
+    private Person mPerson;
+    private Driver mDriver;
 
     /* Client used to interact with Google APIs. */
     protected GoogleApiClient mGoogleApiClient;
@@ -204,8 +212,27 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         locationServicesCheck();
         setupLocationUpdates();
+
+        userLoggedIn();
     }
 
+    private void userLoggedIn() {
+        if (Plus.PeopleApi.getCurrentPerson(mGoogleApiClient) != null) {
+            mPerson = Plus.PeopleApi.getCurrentPerson(mGoogleApiClient);
+            Log.i(TAG, "name=" + mPerson.getDisplayName());
+            Log.i(TAG, "profileUrl=" + mPerson.getUrl());
+
+            mDriver = ModelUtil.fromPerson(mPerson);
+            Driver.findOrCreateDriver(mPerson, new FindCallback<Driver>() {
+                @Override
+                public void done(List<Driver> objects, ParseException e) {
+                    mDriver = objects.get(0);
+                }
+            });
+        } else {
+            plusProfileFailed();
+        }
+    }
 
     private void setupLocationUpdates() {
         Log.d(TAG, "setting up location updates");
@@ -310,4 +337,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         alert.show();
 
     }
+
+    public void plusProfileFailed() {
+        Log.e(TAG, "plus profile failed - returned null");
+        Toast.makeText(this, "Unable to get user information from G+. Aborting", Toast.LENGTH_LONG).show();
+    }
+
 }

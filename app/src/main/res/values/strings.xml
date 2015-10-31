@@ -2,4 +2,7 @@
     <string name="app_name">BTB</string>
     <string name="google_api_key">AIzaSyCcNHJLQZgQ6E1BdTw6WsLni1kC_1XV1tw</string>
     <string name="title_activity_main">MainActivity</string>
+    <string name="parse_application_id">2ZdfAvYdgWa6WXRLg8G1WuWIORHlbtAIi0I9g7fX</string>
+    <string name="parse_client_key">0tMKEWQfMii5CMoV1GHgki4t6yxDwBxhEBq3T0ca</string>
+
 </resources>
