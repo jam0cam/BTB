@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/drawer_layout_item_height"
+    android:paddingTop="@dimen/default_inner_padding"
+    android:paddingBottom="@dimen/default_inner_padding"
+    android:paddingLeft="@dimen/default_outer_padding"
+    android:paddingRight="@dimen/default_outer_padding"
+    >
+    <TextView
+        android:id="@+id/trip_name"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/avatar_height_and_width"
+        style="@style/DrawerTextViewStyle"
+        android:gravity="center_vertical"
+        />
+</LinearLayout>

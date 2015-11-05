@@ -1,5 +1,7 @@
 package com.jiacorp.btb.parse;
 
+import android.util.Log;
+
 import com.google.android.gms.plus.model.people.Person;
 import com.jiacorp.btb.CollectionUtils;
 import com.parse.FindCallback;
@@ -23,6 +25,8 @@ import java.util.List;
  */
 @ParseClassName("Driver")
 public class Driver extends CancelableParseObject implements Serializable {
+
+    private static final String TAG = Driver.class.getName();
 
     public Driver(String name, String url) {
         setName(name);
@@ -98,23 +102,30 @@ public class Driver extends CancelableParseObject implements Serializable {
     }
 
     public static void findOrCreateDriver(final Person person, final FindCallback<Driver> callback) {
+        Log.d(TAG, "findOrCreateDriver");
         findDriver(person.getUrl(), new FindCallback<Driver>() {
             @Override
             public void done(List<Driver> objects, ParseException e) {
 
                 //if this driver doesn't exist, then create a new one
                 if (CollectionUtils.isNullOrEmpty(objects)) {
+                    Log.d(TAG, "Driver not found: " + person.getUrl());
                     final Driver d = ModelUtil.fromPerson(person);
                     d.saveInBackground(new SaveCallback() {
                         @Override
                         public void done(ParseException e) {
                             if (e == null) {
+
+                                Log.d(TAG, "New driver created: " + person.getName());
                                 List<Driver> drivers = new ArrayList<>();
                                 drivers.add(d);
                                 callback.done(drivers, e);
                             }
                         }
                     });
+                } else {
+                    Log.d(TAG, "Driver found:" + person.getName());
+                    callback.done(objects, e);
                 }
             }
         });
