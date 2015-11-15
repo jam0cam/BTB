@@ -2,6 +2,7 @@ package com.jiacorp.btb;
 
 import android.graphics.Color;
 import android.graphics.Point;
+import android.location.Location;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.view.animation.Interpolator;
@@ -11,7 +12,11 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
+import com.jiacorp.btb.parse.Position;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
@@ -19,6 +24,8 @@ import java.util.Random;
  * Created by jitse on 11/4/15.
  */
 public class Util {
+
+    private static DateFormat mDateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public static int randomColor() {
         Random rnd = new Random();
@@ -46,6 +53,17 @@ public class Util {
         }
     }
 
+
+    public static Position getNewPosition(Location location) {
+        if (location == null) {
+            return null;
+        }
+        Position r = new Position();
+        r.setLatitude(location.getLatitude());
+        r.setLongitude(location.getLongitude());
+        r.setTimestamp(mDateFormatter.format(new Date()));
+        return r;
+    }
 
     public static void animateMarker(GoogleMap map, final Marker marker, final LatLng toPosition) {
         final Handler handler = new Handler();

@@ -44,21 +44,20 @@ import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
 import com.jiacorp.btb.CollectionUtils;
 import com.jiacorp.btb.ImageUtils;
+import com.jiacorp.btb.LocationService;
 import com.jiacorp.btb.MyListAdapter;
 import com.jiacorp.btb.R;
 import com.jiacorp.btb.Util;
 import com.jiacorp.btb.parse.Driver;
 import com.jiacorp.btb.parse.ModelUtil;
-import com.jiacorp.btb.parse.Route;
 import com.jiacorp.btb.parse.Trip;
 import com.parse.FindCallback;
 import com.parse.ParseException;
+import com.parse.SaveCallback;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
+import java.lang.reflect.Member;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import butterknife.Bind;
@@ -113,9 +112,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     /* Client used to interact with Google APIs. */
     protected GoogleApiClient mGoogleApiClient;
 
-    private DateFormat mDateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private boolean mFirstTimeZoom;
     private boolean isTrackingStarted;
+    private Intent mLocationServiceIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -262,10 +261,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 mThisTrip.setName(userInput.getText().toString().trim());
-                Log.d(TAG, "stopTracking");
-                isTrackingStarted = false;
-                updateTripLocation();
-                mThisTrip = null;
+                mThisTrip.saveInBackground(new SaveCallback() {
+                    @Override
+                    public void done(ParseException e) {
+                        Log.d(TAG, "stopTracking");
+                        isTrackingStarted = false;
+                        invalidateOptionsMenu();
+                        mThisTrip = null;
+                        stopBackgroundService();
+                    }
+                });
                 dialog.dismiss();
             }
         });
@@ -280,6 +285,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
+
+    public void stopBackgroundService() {
+        Log.d(TAG, "Stopping location background service");
+        stopService(new Intent(this, LocationService.class));
+        mLocationServiceIntent = null;
+    }
+
+
+    public void startBackgroundService() {
+        Log.d(TAG, "Launching location background service");
+        mLocationServiceIntent = new Intent(this, LocationService.class);
+        mLocationServiceIntent.putExtra(LocationService.EXTRA_TRIP_ID, mThisTrip.getObjectId());
+
+        //note that multiple calls to start service doesn't actually start multiple services
+        startService(mLocationServiceIntent);
+    }
+
+
     private void startTracking() {
         Log.d(TAG, "startTracking");
 
@@ -287,8 +310,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         mThisTrip = new Trip();
         mThisTrip.setDriver(mDriver);
-        mThisTrip.setRoutes(new ArrayList<>(Arrays.asList(getNewRoute())));
-        mThisTrip.saveInBackground();
+        mThisTrip.setPositions(new ArrayList<>(Arrays.asList(Util.getNewPosition(mLastLocation))));
+        mThisTrip.saveInBackground(new SaveCallback() {
+            @Override
+            public void done(ParseException e) {
+                Log.d(TAG, "new trip saved");
+                startBackgroundService();
+            }
+        });
     }
 
 
@@ -438,23 +467,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             mFirstTimeZoom = false;
             zoomToMyLocation();
         }
-
-        updateTripLocation();
-    }
-
-    private void updateTripLocation() {
-        if (mThisTrip != null) {
-            mThisTrip.addUnique("routes", getNewRoute());
-            mThisTrip.saveInBackground();
-        }
-    }
-
-    private Route getNewRoute() {
-        Route r = new Route();
-        r.setLatitude(mLastLocation.getLatitude());
-        r.setLongitude(mLastLocation.getLongitude());
-        r.setTimestamp(mDateFormatter.format(new Date()));
-        return r;
     }
 
     @Override

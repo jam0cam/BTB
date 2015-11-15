@@ -44,12 +44,28 @@ public class Trip extends CancelableParseObject implements Serializable {
         }
     }
 
-    public List<Route> getRoutes() {
-        return getList("routes");
+    public List<Position> getPositions() {
+        return getList("Positions");
     }
 
-    public void setRoutes(List<Route> members) {
-        put("routes", members);
+    public void setPositions(List<Position> positions) {
+        put("Positions", positions);
+    }
+
+    public static void findTrip(String objectId, final FindCallback<Trip> callback) {
+        final ParseQuery<Trip> query = ParseQuery.getQuery(Trip.class);
+        query.whereEqualTo("objectId", objectId);
+        query.findInBackground(new FindCallback<Trip>() {
+            @Override
+            public void done(List<Trip> objects, ParseException e) {
+                if (callback != null) {
+                    callback.done(objects, e);
+                }
+                queries.remove(query);
+            }
+        });
+
+        queries.add(query);
     }
 
     public static void findTripWithDriver(String plusUrl, final FindCallback<Trip> callback) {

@@ -3,7 +3,7 @@ package com.jiacorp.btb;
 import android.app.Application;
 
 import com.jiacorp.btb.parse.Driver;
-import com.jiacorp.btb.parse.Route;
+import com.jiacorp.btb.parse.Position;
 import com.jiacorp.btb.parse.Trip;
 import com.parse.Parse;
 import com.parse.ParseObject;
@@ -22,7 +22,7 @@ public class MyApplication extends Application {
         Parse.initialize(this, getString(R.string.parse_application_id), getString(R.string.parse_client_key));
 
         ParseObject.registerSubclass(Driver.class);
-        ParseObject.registerSubclass(Route.class);
+        ParseObject.registerSubclass(Position.class);
         ParseObject.registerSubclass(Trip.class);
     }
 }
