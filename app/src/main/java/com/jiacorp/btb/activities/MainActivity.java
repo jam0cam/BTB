@@ -10,9 +10,10 @@ import android.content.IntentSender;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -21,10 +22,9 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AbsListView;
+import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,8 +33,6 @@ import com.bumptech.glide.Glide;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.ErrorDialogFragment;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -44,11 +42,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
-import com.jiacorp.btb.CollectionUtils;
 import com.jiacorp.btb.Constants;
 import com.jiacorp.btb.ImageUtils;
 import com.jiacorp.btb.LocationService;
-import com.jiacorp.btb.MyListAdapter;
 import com.jiacorp.btb.R;
 import com.jiacorp.btb.Util;
 import com.jiacorp.btb.parse.Driver;
@@ -58,10 +54,12 @@ import com.parse.FindCallback;
 import com.parse.ParseException;
 import com.parse.SaveCallback;
 
-import java.lang.reflect.Member;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -90,6 +88,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Bind(R.id.drawer_layout)
     DrawerLayout mDrawerLayout;
 
+    private TextView mTimerText;
+
+    @Bind(R.id.meter)
+    Chronometer mChronometer;
+
+
+    private long mStartTime;
 
     private ActionBarDrawerToggle mDrawerToggle;
 
@@ -100,6 +105,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Person mPerson;
     private Driver mDriver;
     private Trip mThisTrip;
+    DateFormat formatter = new SimpleDateFormat("kk:mm:ss");
 
     /* Client used to interact with Google APIs. */
     protected GoogleApiClient mGoogleApiClient;
@@ -128,6 +134,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
 
@@ -199,12 +206,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         if (isTrackingStarted) {
             menu.findItem(R.id.action_start).setVisible(false);
@@ -233,6 +234,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         isTrackingStarted = false;
         invalidateOptionsMenu();
         mThisTrip = null;
+        mChronometer.stop();
         stopBackgroundService();
     }
 
@@ -264,7 +266,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 isTrackingStarted = true;
-
                 mThisTrip = new Trip();
                 mThisTrip.setDriver(mDriver);
                 mThisTrip.setPositions(new ArrayList<>(Arrays.asList(Util.getNewPosition(mLastLocation))));
@@ -274,6 +275,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     public void done(ParseException e) {
                         Log.d(TAG, "startTracking, new trip saved");
                         startBackgroundService();
+                        mStartTime = SystemClock.elapsedRealtime();
+                        startTimer();
                         invalidateOptionsMenu();
                     }
                 });
@@ -290,6 +293,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         alertDialog.show();
     }
 
+    private void startTimer() {
+        Log.d(TAG, "starting ticker");
+        if (mChronometer != null) {
+            mChronometer.setBase(mStartTime);
+            mChronometer.start();
+        }
+    }
 
     @Override
     protected void onResume() {
@@ -301,6 +311,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         IntentFilter intentFilter = new IntentFilter(LocationService.LOCATION_BROADCAST);
         intentFilter.addAction(LocationService.END_TRIP_BROADCAST);
         registerReceiver(mReceiver, intentFilter);
+        if (isTrackingStarted) {
+            startTimer();
+        }
     }
 
     @Override

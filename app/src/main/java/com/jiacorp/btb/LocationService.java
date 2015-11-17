@@ -21,6 +21,7 @@ import com.jiacorp.btb.activities.MainActivity;
 import com.jiacorp.btb.parse.Trip;
 import com.parse.FindCallback;
 import com.parse.ParseException;
+import com.parse.SaveCallback;
 
 import java.util.List;
 
@@ -59,12 +60,17 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
         Log.d(TAG, "onDestroy");
+
+        //store the final location before ending trip
+        onLocationChanged(mLastLocation);
+
         if (mGoogleApiClient.isConnected()) {
             Log.d(TAG, "disconnected mGoogleApiClient");
             mGoogleApiClient.disconnect();
         }
+
+        super.onDestroy();
     }
 
     @Override
@@ -180,7 +186,16 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     private void updateTripLocation() {
         if (mTrip != null) {
             mTrip.addUnique("Positions", Util.getNewPosition(mLastLocation));
-            mTrip.saveInBackground();
+            mTrip.saveInBackground(new SaveCallback() {
+                @Override
+                public void done(ParseException e) {
+                    if (e == null) {
+                        Log.d(TAG, "Successfully saved trip");
+                    } else {
+                        Log.d(TAG, "Saving trip: " + e.getMessage());
+                    }
+                }
+            });
         }
     }
 

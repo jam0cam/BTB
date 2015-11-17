@@ -19,11 +19,20 @@
 
             <android.support.v7.widget.Toolbar android:id="@+id/toolbar"
                 android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"
-                android:background="?attr/colorPrimary" app:popupTheme="@style/AppTheme.PopupOverlay" />
+                android:background="?attr/colorPrimary" app:popupTheme="@style/AppTheme.PopupOverlay" >
+                <Chronometer
+                    android:id="@+id/meter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </android.support.v7.widget.Toolbar>
 
         </android.support.design.widget.AppBarLayout>
 
-        <include layout="@layout/content_main" />
+        <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+            android:name="com.google.android.gms.maps.MapFragment"
+            android:id="@+id/map"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
 
     </android.support.design.widget.CoordinatorLayout>
 
@@ -44,16 +53,16 @@
             android:id="@+id/ll_trips"
             android:clickable="true"
             android:layout_width="match_parent"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
             android:layout_height="@dimen/drawer_menu_item_height"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:layout_marginTop="@dimen/default_inner_padding"
+            >
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/rowIcon"
-                android:layout_marginLeft="16dp"
+                android:layout_marginLeft="@dimen/default_outer_padding"
                 android:src="@mipmap/ic_directions_car_black_24dp"/>
 
             <TextView
@@ -61,7 +70,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="32dp"
-                android:paddingTop="4dp"
                 android:text="My Trips"
                 style="@style/DrawerMenuItem"
                 />
