@@ -40,46 +40,33 @@
         <include
             android:id="@+id/header"
             layout="@layout/drawer_header" />
-        <TextView
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/ll_trips"
+            android:clickable="true"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingLeft="@dimen/default_outer_padding"
-            android:paddingRight="@dimen/default_outer_padding"
-            android:gravity="center"
-            android:text="My Trips"
-            style="@style/ListSubheader"
-            />
-        <!-- Contains the list of trips -->
-        <android.support.v4.widget.SwipeRefreshLayout
-            android:id="@+id/swipe_container"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:paddingLeft="@dimen/default_outer_padding"
-            android:paddingRight="@dimen/default_outer_padding"
-            >
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:layout_height="@dimen/drawer_menu_item_height"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/rowIcon"
+                android:layout_marginLeft="16dp"
+                android:src="@mipmap/ic_directions_car_black_24dp"/>
 
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clickable="true"
-                >
-                <ListView
-                    android:id="@+id/list_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    />
-                <TextView
-                    android:id="@+id/txt_empty_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pull_to_refresh"
-                    android:visibility="gone"
-                    android:gravity="center"
-                    android:textColor="@color/secondary_text_default_material_light"
-                    />
-            </FrameLayout>
-        </android.support.v4.widget.SwipeRefreshLayout>
+            <TextView
+                android:id="@+id/rowText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="32dp"
+                android:paddingTop="4dp"
+                android:text="My Trips"
+                style="@style/DrawerMenuItem"
+                />
+        </LinearLayout>
+
     </LinearLayout>
 </android.support.v4.widget.DrawerLayout>
 

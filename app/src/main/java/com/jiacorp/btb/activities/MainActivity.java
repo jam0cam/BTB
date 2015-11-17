@@ -1,9 +1,11 @@
 package com.jiacorp.btb.activities;
 
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.location.Location;
 import android.location.LocationManager;
@@ -43,6 +45,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
 import com.jiacorp.btb.CollectionUtils;
+import com.jiacorp.btb.Constants;
 import com.jiacorp.btb.ImageUtils;
 import com.jiacorp.btb.LocationService;
 import com.jiacorp.btb.MyListAdapter;
@@ -62,11 +65,11 @@ import java.util.List;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener,
-        LocationListener, SwipeRefreshLayout.OnRefreshListener {
+        GoogleApiClient.OnConnectionFailedListener {
     private static final String TAG = MainActivity.class.getName();
 
     /* Request code used to invoke sign in user interactions. */
@@ -87,14 +90,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Bind(R.id.drawer_layout)
     DrawerLayout mDrawerLayout;
 
-    @Bind(R.id.swipe_container)
-    SwipeRefreshLayout mSwipeContainer;
-
-    @Bind(R.id.list_view)
-    ListView mListView;
-
-    @Bind(R.id.txt_empty_view)
-    TextView mEmptyText;
 
     private ActionBarDrawerToggle mDrawerToggle;
 
@@ -105,9 +100,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private Person mPerson;
     private Driver mDriver;
     private Trip mThisTrip;
-    private List<Trip> mMyTrips = new ArrayList<>();
-
-    private MyListAdapter mListAdapter;
 
     /* Client used to interact with Google APIs. */
     protected GoogleApiClient mGoogleApiClient;
@@ -115,6 +107,23 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean mFirstTimeZoom;
     private boolean isTrackingStarted;
     private Intent mLocationServiceIntent;
+
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "broadcast receiver: onReceive");
+            Bundle bundle = intent.getExtras();
+            if (intent.getAction().equals(LocationService.LOCATION_BROADCAST)) {
+                Log.d(TAG, "received location broadcast");
+                mLastLocation = (Location) bundle.get(LocationService.EXTRA_LOCATION);
+                onLocationChanged(mLastLocation);
+            } else if (intent.getAction().equals(LocationService.END_TRIP_BROADCAST)) {
+                Log.d(TAG, "received stop broadcast");
+                stopTracking();
+            }
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,38 +151,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .addScope(Plus.SCOPE_PLUS_PROFILE)
                 .build();
 
-        mSwipeContainer.setOnRefreshListener(this);
-        mSwipeContainer.setColorSchemeResources(android.R.color.holo_blue_bright,
-                android.R.color.holo_green_light,
-                android.R.color.holo_orange_light,
-                android.R.color.holo_red_light);
-
-        setupListView();
+        locationServicesCheck();
         setupMapFragment();
-    }
-
-    private void setupListView() {
-        mListAdapter = new MyListAdapter(this, mMyTrips , new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.d(TAG, "Trip clicked");
-            }
-        });
-        mListView.setAdapter(mListAdapter);
-        mListView.setEmptyView(mEmptyText);
-        mListView.setOnScrollListener(new AbsListView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(AbsListView view, int scrollState) {
-
-            }
-
-            @Override
-            public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
-                int topRowVerticalPosition = (mListView == null || mListView.getChildCount() == 0) ?
-                        0 : mListView.getChildAt(0).getTop();
-                mSwipeContainer.setEnabled((topRowVerticalPosition >= 0));
-            }
-        });
     }
 
     protected void setupMapFragment() {
@@ -250,41 +229,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void stopTracking() {
-
-        //prompt user for trip name, and present option to discard trip
-        final AlertDialog.Builder inputAlert = new AlertDialog.Builder(this);
-        inputAlert.setTitle("Ending Trip");
-        inputAlert.setMessage("Please provide trip name");
-        final EditText userInput = new EditText(this);
-        inputAlert.setView(userInput);
-        inputAlert.setPositiveButton("Save", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                mThisTrip.setName(userInput.getText().toString().trim());
-                mThisTrip.saveInBackground(new SaveCallback() {
-                    @Override
-                    public void done(ParseException e) {
-                        Log.d(TAG, "stopTracking");
-                        isTrackingStarted = false;
-                        invalidateOptionsMenu();
-                        mThisTrip = null;
-                        stopBackgroundService();
-                    }
-                });
-                dialog.dismiss();
-            }
-        });
-        inputAlert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-        AlertDialog alertDialog = inputAlert.create();
-        alertDialog.show();
-
+        Log.d(TAG, "stopTracking");
+        isTrackingStarted = false;
+        invalidateOptionsMenu();
+        mThisTrip = null;
+        stopBackgroundService();
     }
-
 
     public void stopBackgroundService() {
         Log.d(TAG, "Stopping location background service");
@@ -304,28 +254,62 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     private void startTracking() {
-        Log.d(TAG, "startTracking");
-
-        isTrackingStarted = true;
-
-        mThisTrip = new Trip();
-        mThisTrip.setDriver(mDriver);
-        mThisTrip.setPositions(new ArrayList<>(Arrays.asList(Util.getNewPosition(mLastLocation))));
-        mThisTrip.saveInBackground(new SaveCallback() {
+        //prompt user for trip name, and present option to discard trip
+        final AlertDialog.Builder inputAlert = new AlertDialog.Builder(this);
+        inputAlert.setTitle("Start New Trip");
+        inputAlert.setMessage("Please provide trip name");
+        final EditText userInput = new EditText(this);
+        inputAlert.setView(userInput);
+        inputAlert.setPositiveButton("Save", new DialogInterface.OnClickListener() {
             @Override
-            public void done(ParseException e) {
-                Log.d(TAG, "new trip saved");
-                startBackgroundService();
+            public void onClick(DialogInterface dialog, int which) {
+                isTrackingStarted = true;
+
+                mThisTrip = new Trip();
+                mThisTrip.setDriver(mDriver);
+                mThisTrip.setPositions(new ArrayList<>(Arrays.asList(Util.getNewPosition(mLastLocation))));
+                mThisTrip.setName(userInput.getText().toString().trim());
+                mThisTrip.saveInBackground(new SaveCallback() {
+                    @Override
+                    public void done(ParseException e) {
+                        Log.d(TAG, "startTracking, new trip saved");
+                        startBackgroundService();
+                        invalidateOptionsMenu();
+                    }
+                });
+                dialog.dismiss();
             }
         });
+        inputAlert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        AlertDialog alertDialog = inputAlert.create();
+        alertDialog.show();
     }
 
 
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume, registering receiver for location broadcasts");
+
         mDrawerToggle.syncState();
         mFirstTimeZoom = true;
+        IntentFilter intentFilter = new IntentFilter(LocationService.LOCATION_BROADCAST);
+        intentFilter.addAction(LocationService.END_TRIP_BROADCAST);
+        registerReceiver(mReceiver, intentFilter);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mReceiver != null) {
+            Log.d(TAG, "unregistering receiver for location broadcasts");
+            unregisterReceiver(mReceiver);
+        }
     }
 
     @Override
@@ -367,9 +351,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             Log.d(TAG, "last known location found");
             onLocationChanged(mLastLocation);
         }
-
-        locationServicesCheck();
-        setupLocationUpdates();
 
         userLoggedIn();
     }
@@ -419,25 +400,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private void setupLocationUpdates() {
-        Log.d(TAG, "setting up location updates");
-        LocationRequest mLocationRequest = new LocationRequest();
-        mLocationRequest.setFastestInterval(5 * 1000);      //10 seconds
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-        mLocationRequest.setSmallestDisplacement(10);       //10 meters
-
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-        Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        if (location != null) {
-            onLocationChanged(location);
-        }
-    }
-
-
-
     public void locationServicesCheck() {
-        final LocationManager manager = (LocationManager) getSystemService( Context.LOCATION_SERVICE );
-        if ( !manager.isProviderEnabled(LocationManager.GPS_PROVIDER) && !manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ) {
+        final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER) && !manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
             buildAlertMessageNoGps();
         }
     }
@@ -457,7 +422,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mGoogleApiClient.connect();
     }
 
-    @Override
     public void onLocationChanged(Location location) {
         Log.d(TAG, "onLocationChanged: " + location.getLatitude() + "," + location.getLongitude());
         mLastLocation = location;
@@ -508,7 +472,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         builder.setMessage("This app requires GPS to be enabled.")
                 .setCancelable(false)
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                    public void onClick(final DialogInterface dialog,  final int id) {
+                    public void onClick(final DialogInterface dialog, final int id) {
                         startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
                     }
                 })
@@ -519,7 +483,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 });
         final AlertDialog alert = builder.create();
         alert.show();
-
     }
 
     public void plusProfileFailed() {
@@ -527,21 +490,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Toast.makeText(this, "Unable to get user information from G+. Aborting", Toast.LENGTH_LONG).show();
     }
 
-    @Override
-    public void onRefresh() {
-        Log.d(TAG, "onRefresh");
+    @OnClick(R.id.ll_trips)
+    public void tripsClicked() {
         if (mDriver != null) {
-            Trip.findTripWithDriver(mDriver.getPlusUrl(), new FindCallback<Trip>() {
-                @Override
-                public void done(List<Trip> objects, ParseException e) {
-                    if (!CollectionUtils.isNullOrEmpty(objects)) {
-                        Log.d(TAG, "found " + objects.size() + " trips");
-                        mMyTrips = objects;
-                        mListAdapter.notifyDataSetChanged();
-                    }
-                    mSwipeContainer.setRefreshing(false);
-                }
-            });
+            Intent i = new Intent(this, TripActivity.class);
+            i.putExtra(Constants.EXTRA_PLUS_URL, mDriver.getPlusUrl());
+            startActivity(i);
         }
     }
+
 }

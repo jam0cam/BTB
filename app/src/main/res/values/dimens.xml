@@ -24,4 +24,5 @@
 
     <dimen name="map_dot_marker_size">16dp</dimen>
     <dimen name="map_marker_text_size">16sp</dimen>
+    <dimen name="drawer_menu_item_height">48dp</dimen>
 </resources>

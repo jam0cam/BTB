@@ -23,6 +23,13 @@
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
+    <style name="DrawerMenuItem" parent="android:Widget.TextView">
+        <item name="android:height">48dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/black87</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
     <style name="DrawerTextViewStyle" parent="android:Widget.TextView">
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">sans-serif-medium</item>
