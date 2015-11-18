@@ -47,6 +47,8 @@
         </activity>
         <activity android:name=".activities.TripActivity" >
         </activity>
+        <activity android:name=".activities.TripDetailActivity" >
+        </activity>
     </application>
 
 </manifest>

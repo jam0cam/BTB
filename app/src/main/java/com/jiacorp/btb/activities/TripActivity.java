@@ -1,5 +1,6 @@
 package com.jiacorp.btb.activities;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -11,6 +12,7 @@ import android.widget.TextView;
 
 import com.jiacorp.btb.CollectionUtils;
 import com.jiacorp.btb.Constants;
+import com.jiacorp.btb.LocationService;
 import com.jiacorp.btb.MyListAdapter;
 import com.jiacorp.btb.R;
 import com.jiacorp.btb.parse.Trip;
@@ -50,6 +52,8 @@ public class TripActivity extends AppCompatActivity implements SwipeRefreshLayou
 
         mPlusUrl = getIntent().getStringExtra(Constants.EXTRA_PLUS_URL);
         setupListView();
+        mSwipeContainer.setRefreshing(true);
+        loadTrips();
     }
 
     private void setupListView() {
@@ -62,7 +66,14 @@ public class TripActivity extends AppCompatActivity implements SwipeRefreshLayou
         mListAdapter = new MyListAdapter(this, mMyTrips, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.d(TAG, "Trip clicked");
+                MyListAdapter.ViewHolder holder = (MyListAdapter.ViewHolder) v.getTag();
+
+                Trip t = mMyTrips.get(holder.position);
+                Log.d(TAG, "Trip clicked:" + t.getName());
+
+                Intent i = new Intent(TripActivity.this, TripDetailActivity.class);
+                i.putExtra(LocationService.EXTRA_TRIP_ID, t.getObjectId());
+                startActivity(i);
             }
         });
         mListView.setAdapter(mListAdapter);
@@ -82,22 +93,26 @@ public class TripActivity extends AppCompatActivity implements SwipeRefreshLayou
         });
     }
 
+    private void loadTrips() {
+        Trip.findTripWithDriver(mPlusUrl, new FindCallback<Trip>() {
+            @Override
+            public void done(List<Trip> objects, ParseException e) {
+                if (!CollectionUtils.isNullOrEmpty(objects)) {
+                    Log.d(TAG, "found " + objects.size() + " trips");
+                    mMyTrips.clear();
+                    mMyTrips.addAll(objects);
+                    mListAdapter.notifyDataSetChanged();
+                }
+                mSwipeContainer.setRefreshing(false);
+            }
+        });
+    }
+
     @Override
     public void onRefresh() {
         Log.d(TAG, "onRefresh");
         if (mPlusUrl != null) {
-            Trip.findTripWithDriver(mPlusUrl, new FindCallback<Trip>() {
-                @Override
-                public void done(List<Trip> objects, ParseException e) {
-                    if (!CollectionUtils.isNullOrEmpty(objects)) {
-                        Log.d(TAG, "found " + objects.size() + " trips");
-                        mMyTrips.clear();
-                        mMyTrips.addAll(objects);
-                        mListAdapter.notifyDataSetChanged();
-                    }
-                    mSwipeContainer.setRefreshing(false);
-                }
-            });
+            loadTrips();
         }
     }
 }

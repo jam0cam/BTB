@@ -12,36 +12,25 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
-import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.ErrorDialogFragment;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapFragment;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
+import com.jiacorp.btb.CollectionUtils;
 import com.jiacorp.btb.Constants;
 import com.jiacorp.btb.ImageUtils;
 import com.jiacorp.btb.LocationService;
@@ -54,27 +43,24 @@ import com.parse.FindCallback;
 import com.parse.ParseException;
 import com.parse.SaveCallback;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,
-        GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+public class MainActivity extends BaseMapActivity {
     private static final String TAG = MainActivity.class.getName();
+
+
+    // Unique tag for the error dialog fragment
+    private static final String DIALOG_ERROR = "dialog_error";
 
     /* Request code used to invoke sign in user interactions. */
     private static final int RC_SIGN_IN = 0;
 
-    // Unique tag for the error dialog fragment
-    private static final String DIALOG_ERROR = "dialog_error";
 
     @Bind(R.id.name)
     TextView mName;
@@ -93,24 +79,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Bind(R.id.meter)
     Chronometer mChronometer;
 
-
+    private boolean mIntentInProgress;
     private long mStartTime;
 
     private ActionBarDrawerToggle mDrawerToggle;
 
-    private boolean mIntentInProgress;
-    GoogleMap mMap;
-    MapFragment mapFragment;
-    protected Location mLastLocation;
     private Person mPerson;
     private Driver mDriver;
     private Trip mThisTrip;
-    DateFormat formatter = new SimpleDateFormat("kk:mm:ss");
 
-    /* Client used to interact with Google APIs. */
-    protected GoogleApiClient mGoogleApiClient;
-
-    private boolean mFirstTimeZoom;
     private boolean isTrackingStarted;
     private Intent mLocationServiceIntent;
 
@@ -134,9 +111,10 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
+
         ButterKnife.bind(this);
+        setupMapFragment();
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -145,63 +123,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mDrawerLayout.setDrawerListener(mDrawerToggle);
         mDrawerToggle.syncState();
 
-
-        mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(Plus.API)
-                .addApi(LocationServices.API)
-                .addScope(Plus.SCOPE_PLUS_LOGIN)
-                .addScope(Plus.SCOPE_PLUS_PROFILE)
-                .build();
-
         locationServicesCheck();
-        setupMapFragment();
-    }
 
-    protected void setupMapFragment() {
-        //This assumes that the subclass already have setContentView with a map fragment
-        mapFragment = (MapFragment) getFragmentManager().findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
-        try {
-            View mapView = mapFragment.getView();
-            View btnMyLocation = ((View) mapView.findViewById(1).getParent()).findViewById(2);
-
-            int width = getResources().getDimensionPixelOffset(R.dimen.my_location_button_height);
-            int margin = getResources().getDimensionPixelOffset(R.dimen.default_outer_padding);
-
-            RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(width, width); // size of button in dp
-            params.addRule(RelativeLayout.ALIGN_PARENT_RIGHT, RelativeLayout.TRUE);
-            params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM, RelativeLayout.TRUE);
-            params.setMargins(0, 0, margin, margin);
-            btnMyLocation.setLayoutParams(params);
-        } catch (Exception e) {
-            Log.w(TAG, "can't find the 'my location' button. Must be an older version of GPS");
-        }
-    }
-
-    @Override
-    public void onMapReady(GoogleMap map) {
-        Log.d(TAG, "onMapReady");
-
-        mMap = map;
-        mMap.getUiSettings().setMapToolbarEnabled(false);
-        mMap.setMyLocationEnabled(true);
-
-        //disable marker click events
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                return true;
-            }
-        });
-
-        if (mLastLocation != null) {
-            onLocationChanged(mLastLocation);
+        if (getIntent().getAction() == LocationService.RESUME_TRIP) {
+            final String tripId = getIntent().getStringExtra(LocationService.EXTRA_TRIP_ID);
+            Trip.findTrip(tripId, new FindCallback<Trip>() {
+                @Override
+                public void done(List<Trip> objects, ParseException e) {
+                    if (!CollectionUtils.isNullOrEmpty(objects)) {
+                        isTrackingStarted = true;
+                        mThisTrip = objects.get(0);
+                        mStartTime = getIntent().getLongExtra(LocationService.EXTRA_CHRONOMETER_BASE, SystemClock.elapsedRealtime());
+                        startTimer();
+                        invalidateOptionsMenu();
+                    } else {
+                        Log.e(TAG, "no trip found with id:" + tripId + ".  Cannot resume");
+                    }
+                }
+            });
         }
     }
 
@@ -214,6 +153,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             menu.findItem(R.id.action_start).setVisible(true);
             menu.findItem(R.id.action_stop).setVisible(false);
         }
+        return true;
+    }
+
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
@@ -249,6 +193,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Log.d(TAG, "Launching location background service");
         mLocationServiceIntent = new Intent(this, LocationService.class);
         mLocationServiceIntent.putExtra(LocationService.EXTRA_TRIP_ID, mThisTrip.getObjectId());
+        mLocationServiceIntent.putExtra(LocationService.EXTRA_CHRONOMETER_BASE, mStartTime);
 
         //note that multiple calls to start service doesn't actually start multiple services
         startService(mLocationServiceIntent);
@@ -274,8 +219,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                     @Override
                     public void done(ParseException e) {
                         Log.d(TAG, "startTracking, new trip saved");
-                        startBackgroundService();
                         mStartTime = SystemClock.elapsedRealtime();
+                        startBackgroundService();
                         startTimer();
                         invalidateOptionsMenu();
                     }
@@ -307,7 +252,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         Log.d(TAG, "onResume, registering receiver for location broadcasts");
 
         mDrawerToggle.syncState();
-        mFirstTimeZoom = true;
         IntentFilter intentFilter = new IntentFilter(LocationService.LOCATION_BROADCAST);
         intentFilter.addAction(LocationService.END_TRIP_BROADCAST);
         registerReceiver(mReceiver, intentFilter);
@@ -326,25 +270,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        Log.d(TAG, "onStart -- start mGoogleApiClient connect");
-        if (!mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.connect();
-        }
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        Log.d(TAG, "onStop");
-        if (mGoogleApiClient.isConnected()) {
-            Log.d(TAG, "disconnected mGoogleApiClient");
-            mGoogleApiClient.disconnect();
-        }
-    }
-
-    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         if (requestCode == RC_SIGN_IN) {
             mIntentInProgress = false;
@@ -352,20 +277,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 mGoogleApiClient.connect();
             }
         }
-    }
-
-    @Override
-    public void onConnected(Bundle bundle) {
-        Log.i(TAG, "#onConnected - GoogleApiClient connected!!");
-
-        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-
-        if (mLastLocation != null && mMap != null) {
-            Log.d(TAG, "last known location found");
-            onLocationChanged(mLastLocation);
-        }
-
-        userLoggedIn();
     }
 
     private void userLoggedIn() {
@@ -421,33 +332,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-    protected void zoomToMyLocation() {
-        Log.d(TAG, "Moving camera to show my last location");
-        // Showing the current location in Google Map
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), 15));
-
-        // Zoom in the Google Map
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(15));
-    }
 
     @Override
-    public void onConnectionSuspended(int i) {
-        mGoogleApiClient.connect();
-    }
+    public void onConnected(Bundle bundle) {
+        super.onConnected(bundle);
 
-    public void onLocationChanged(Location location) {
-        Log.d(TAG, "onLocationChanged: " + location.getLatitude() + "," + location.getLongitude());
-        mLastLocation = location;
-
-        if (mFirstTimeZoom) {
-            Log.d(TAG, "Moving camera view for the first time");
-            mFirstTimeZoom = false;
-            zoomToMyLocation();
-        }
+        userLoggedIn();
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult result) {
+        super.onConnectionFailed(result);
+
         Log.d(TAG, "onConnectionFailed");
         if (!mIntentInProgress && result.hasResolution()) {
             // The user has already clicked 'sign-in' so we attempt to resolve all
@@ -466,8 +362,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             showErrorDialog(result.getErrorCode());
         }
     }
-    // The rest of this code is all about building the error dialog
 
+
+    // The rest of this code is all about building the error dialog
     /* Creates a dialog for an error message */
     private void showErrorDialog(int errorCode) {
         // Create a fragment for the error dialog
@@ -478,7 +375,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         dialogFragment.setArguments(args);
         dialogFragment.show(getFragmentManager(), "errordialog");
     }
-
 
     private void buildAlertMessageNoGps() {
         final AlertDialog.Builder builder = new AlertDialog.Builder(this);

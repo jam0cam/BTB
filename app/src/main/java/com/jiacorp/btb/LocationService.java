@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
@@ -34,16 +33,18 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     private static final String TAG = LocationService.class.getName();
     public static final String END_TRIP = "end-trip";
+    public static final String RESUME_TRIP = "resume-trip";
     public static final String LOCATION_BROADCAST = "location-bc";
     public static final String END_TRIP_BROADCAST = "end-trip-bcbc";
     public static final String EXTRA_LOCATION = "location";
     public static final String EXTRA_TRIP_ID = "trip-id";
+    public static final String EXTRA_CHRONOMETER_BASE = "chrono-base";
     private static final int NOTIFICATION_ID = 234232;
 
     private GoogleApiClient mGoogleApiClient;
     private Trip mTrip;
 
-    private Handler mHandler;
+    private long mChronoBase;
     private Location mLastLocation;
 
     @Nullable
@@ -106,6 +107,8 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                     }
                 }
             });
+
+            mChronoBase = intent.getLongExtra(EXTRA_CHRONOMETER_BASE, 0);
         }
 
         return Service.START_NOT_STICKY;
@@ -128,8 +131,11 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
         // This intent is fired when notification is clicked
         Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.setAction(RESUME_TRIP);
+        notificationIntent.putExtra(EXTRA_TRIP_ID, mTrip.getObjectId());
+        notificationIntent.putExtra(EXTRA_CHRONOMETER_BASE, mChronoBase);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         // Use NotificationCompat.Builder to set up our notification.
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
