@@ -55,6 +55,7 @@ public class Trip extends CancelableParseObject implements Serializable {
     public static void findTrip(String objectId, final FindCallback<Trip> callback) {
         final ParseQuery<Trip> query = ParseQuery.getQuery(Trip.class);
         query.whereEqualTo("objectId", objectId);
+        query.include("Positions");
         query.findInBackground(new FindCallback<Trip>() {
             @Override
             public void done(List<Trip> objects, ParseException e) {

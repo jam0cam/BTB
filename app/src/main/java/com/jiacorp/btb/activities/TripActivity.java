@@ -12,7 +12,6 @@ import android.widget.TextView;
 
 import com.jiacorp.btb.CollectionUtils;
 import com.jiacorp.btb.Constants;
-import com.jiacorp.btb.LocationService;
 import com.jiacorp.btb.MyListAdapter;
 import com.jiacorp.btb.R;
 import com.jiacorp.btb.parse.Trip;
@@ -72,7 +71,7 @@ public class TripActivity extends AppCompatActivity implements SwipeRefreshLayou
                 Log.d(TAG, "Trip clicked:" + t.getName());
 
                 Intent i = new Intent(TripActivity.this, TripDetailActivity.class);
-                i.putExtra(LocationService.EXTRA_TRIP_ID, t.getObjectId());
+                i.putExtra(Constants.EXTRA_TRIP_ID, t.getObjectId());
                 startActivity(i);
             }
         });

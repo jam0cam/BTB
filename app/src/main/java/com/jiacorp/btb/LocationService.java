@@ -32,13 +32,6 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         LocationListener {
 
     private static final String TAG = LocationService.class.getName();
-    public static final String END_TRIP = "end-trip";
-    public static final String RESUME_TRIP = "resume-trip";
-    public static final String LOCATION_BROADCAST = "location-bc";
-    public static final String END_TRIP_BROADCAST = "end-trip-bcbc";
-    public static final String EXTRA_LOCATION = "location";
-    public static final String EXTRA_TRIP_ID = "trip-id";
-    public static final String EXTRA_CHRONOMETER_BASE = "chrono-base";
     private static final int NOTIFICATION_ID = 234232;
 
     private GoogleApiClient mGoogleApiClient;
@@ -93,10 +86,10 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             }
         }
 
-        if (intent.getAction() == END_TRIP) {
+        if (intent.getAction() == Constants.END_TRIP) {
             endTrip();
         } else {
-            String tripId = intent.getStringExtra(EXTRA_TRIP_ID);
+            String tripId = intent.getStringExtra(Constants.EXTRA_TRIP_ID);
             Trip.findTrip(tripId, new FindCallback<Trip>() {
                 @Override
                 public void done(List<Trip> list, ParseException e) {
@@ -108,7 +101,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
                 }
             });
 
-            mChronoBase = intent.getLongExtra(EXTRA_CHRONOMETER_BASE, 0);
+            mChronoBase = intent.getLongExtra(Constants.EXTRA_CHRONOMETER_BASE, 0);
         }
 
         return Service.START_NOT_STICKY;
@@ -125,15 +118,15 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
         //this intent is to perform a "endTrip" on the group
         Intent resetIntent = new Intent(this, LocationService.class);
-        resetIntent.setAction(END_TRIP);
+        resetIntent.setAction(Constants.END_TRIP);
         PendingIntent pResetIntent = PendingIntent.getService(this, 0, resetIntent, 0);
 
 
         // This intent is fired when notification is clicked
         Intent notificationIntent = new Intent(this, MainActivity.class);
-        notificationIntent.setAction(RESUME_TRIP);
-        notificationIntent.putExtra(EXTRA_TRIP_ID, mTrip.getObjectId());
-        notificationIntent.putExtra(EXTRA_CHRONOMETER_BASE, mChronoBase);
+        notificationIntent.setAction(Constants.RESUME_TRIP);
+        notificationIntent.putExtra(Constants.EXTRA_TRIP_ID, mTrip.getObjectId());
+        notificationIntent.putExtra(Constants.EXTRA_CHRONOMETER_BASE, mChronoBase);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
@@ -206,14 +199,14 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     }
 
     private void broadcastLocation(Location location) {
-        Intent newIntent = new Intent(LOCATION_BROADCAST);
-        newIntent.putExtra(EXTRA_LOCATION, location);
+        Intent newIntent = new Intent(Constants.LOCATION_BROADCAST);
+        newIntent.putExtra(Constants.EXTRA_LOCATION, location);
         Log.d(TAG, "Broadcasting location and place");
         sendBroadcast(newIntent);
     }
 
     private void broadcastStop() {
-        Intent newIntent = new Intent(END_TRIP_BROADCAST);
+        Intent newIntent = new Intent(Constants.END_TRIP_BROADCAST);
         Log.d(TAG, "Broadcasting endTrip");
         sendBroadcast(newIntent);
     }
